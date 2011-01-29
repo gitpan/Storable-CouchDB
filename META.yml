@@ -1,10 +1,10 @@
 --- #YAML:1.0
 name:                Storable-CouchDB
-version:             0.02
+version:             0.03
 abstract:            Persistence for Perl data structures in CouchDB
 license:             ~
 author:              
-    - Michael R. Davis (mdavis@stopllc.com)
+    - Michael R. Davis (mdavis@davisnetworks.com)
 generated_by:        ExtUtils::MakeMaker version 6.42
 distribution_type:   module
 requires:     

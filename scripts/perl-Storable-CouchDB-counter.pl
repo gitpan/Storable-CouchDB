@@ -7,6 +7,20 @@ use Storable::CouchDB;
 
 perl-Storable-CouchDB-counter.pl - Storable::CouchDB Simple Counter Example
 
+=head1 VERIFICATION
+
+=head2 URL
+
+http://127.0.0.1:5984/perl-storable-couchdb/counter
+
+=head2 Example Document
+
+  {
+    "_id":"counter",
+    "_rev":"52-c4e57d1be448bf0f2c48d3f91d1e71ab",
+    "data":52
+  }
+
 =cut
 
 my $s=Storable::CouchDB->new; #default localhost server, default database name

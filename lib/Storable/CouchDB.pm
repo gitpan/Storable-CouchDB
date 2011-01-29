@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use CouchDB::Client;
 
-our $VERSION='0.02';
+our $VERSION='0.03';
 
 =head1 NAME
 
@@ -14,10 +14,11 @@ Storable::CouchDB - Persistence for Perl data structures in CouchDB
   use Storable::CouchDB;
   my $s = Storable::CouchDB->new;
   my $data = $s->retrieve('doc'); #undef if not exists
-  $s->store('doc', "data");       #overwrites or creates if not exists
-  $s->store('doc', {"my" => "data"});
-  $s->store('doc', ["my", "data"]);
-  $s->store('doc', undef);
+  $s->store('doc1' => "data");    #overwrites or creates if not exists
+  $s->store('doc2' => {"my" => "data"});
+  $s->store('doc3' => ["my", "data"]);
+  $s->store('doc4' => undef);
+  $s->store('doc5' => $deepDataStructure);
   $s->delete('doc');
 
 =head2 Inheritance
@@ -34,23 +35,43 @@ The Storable::CouchDB package brings persistence to your Perl data structures co
 
 The concept for this package is to provide similar capabilities as Storable::store and Storable::retrieve which work seamlessly with a CouchDB instead of a file system.
 
+=head2 Storage Details
+
+The data is stored in the CouchDB under a key named "data", in the document named by the "doc" argument, in the database return by the "db" method, on the server returned by the "uri" method.
+
+Example:
+
+The perl script
+
+  perl -MStorable::CouchDB -e 'Storable::CouchDB->new->store(counter=>{key=>[1,2,3]})' 
+
+Creates or updates this document
+
+  http://127.0.0.1:5984/perl-storable-couchdb/counter
+
+Which returns this JSON structure
+
+  {
+    "_id":"counter",
+    "_rev":"39-31732f54c3ad4f2b61c217a9a8cf6171",
+    "data":{"key":[1,2,3]}
+  }
+
 =head1 USAGE
 
-Write perl data structure to database.
+Write Perl data structure to database.
 
   use Storable::CouchDB;
   my $s = Storable::CouchDB->new;
-  $s->store('mydockey' => {Hello=>'World!'});
+  $s->store('doc' => {Hello=>'World!'});
 
-Read perl data structure from database.
+Read Perl data structure from database.
 
   use Storable::CouchDB;
   use Data::Dumper qw{Dumper};
   my $s = Storable::CouchDB->new;
-  my $data = $s->retrieve('mydockey');
+  my $data = $s->retrieve('doc');
   print Dumper([$data]);
-
-=head1 METHODS
 
 =head1 CONSTRUCTOR
 
@@ -59,8 +80,8 @@ Read perl data structure from database.
   my $s = Storable::CouchDB->new; #use default server and database
 
   my $s = Storable::CouchDB->new(
-            uri => 'http://127.0.0.1:5984/',  #default
-            db  => 'perl-storable-couchDB'    #default
+                                 uri => 'http://127.0.0.1:5984/',  #default
+                                 db  => 'perl-storable-couchDB'    #default
                                 );
 
 =cut
@@ -87,48 +108,48 @@ sub initialize {
 
 =head2 store
 
-  $s->store('key' => "");
-  $s->store('key' => {});
-  $s->store('key' => []);
-  my $data=$s->store('key' => {}); #returns data
+  $s->store('doc' => "Value");
+  $s->store('doc' => {a => 1});
+  $s->store('doc' => [1, 2, 3]);
+  my $data=$s->store('doc' => {b => 2}); #returns data that was stored
 
-API Difference: The L<Storable> API uses the $data=>$fileiname argument format which I think is counterintuitive for a key=>value store like CouchDB.
+API Difference: The L<Storable> API uses the store data > filename argument syntax which I think is counterintuitive for a document key=>value store like CouchDB.
 
 =cut
 
 sub store {
   my $self=shift;
   die("Error: Wrong number of arguments.") unless @_ == 2;
-  my $id=shift;
-  die("Error: ID must be defined.") unless defined $id;
-  my $data=shift; #support storing undef!
-  my $doc=$self->_db->newDoc($id);
-  if ($self->_db->docExists($id)) {
-    $doc->retrieve; #to get revision number for object
-    $doc->data({data=>$data});
-    $doc->update;
+  my $doc=shift;
+  die("Error: Key must be defined.") unless defined $doc;
+  my $data=shift;                        #support storing undef!
+  my $cdbdoc=$self->_db->newDoc($doc);   #isa CouchDB::Client::Doc
+  if ($self->_db->docExists($doc)) {
+    $cdbdoc->retrieve;                   #to get revision number for object
+    $cdbdoc->data({data=>$data});
+    $cdbdoc->update;
   } else {
-    $doc->data({data=>$data});
-    $doc->create;
+    $cdbdoc->data({data=>$data});
+    $cdbdoc->create;
   }
-  return $doc->data->{"data"};
+  return $cdbdoc->data->{"data"};
 }
 
 =head2 retrieve
 
-  my $scalar=$s->retrieve("key"); #undef if not exists (but you can also store undef)
+  my $data=$s->retrieve('doc'); #undef if not exists (but you can also store undef)
 
 =cut
 
 sub retrieve {
   my $self=shift;
   die("Error: Wrong number of arguments.") unless @_ == 1;
-  my $id=shift;
-  die("Error: ID must be defined.") unless defined $id;
-  if ($self->_db->docExists($id)) {
-    my $doc=$self->_db->newDoc($id);
-    $doc->retrieve;
-    return $doc->data->{"data"};
+  my $doc=shift;
+  die("Error: Key must be defined.") unless defined $doc;
+  if ($self->_db->docExists($doc)) {
+    my $cdbdoc=$self->_db->newDoc($doc); #isa CouchDB::Client::Doc
+    $cdbdoc->retrieve;
+    return $cdbdoc->data->{"data"};      #This may also be undef
   } else {
     return undef;
   }
@@ -136,23 +157,23 @@ sub retrieve {
 
 =head2 delete
 
-  $s->delete("key");
+  $s->delete('doc');
 
-  my $data=$s->delete("key"); #returns value from database just before delete
+  my $data=$s->delete('doc'); #returns value from database just before delete
 
 =cut
 
 sub delete {
   my $self=shift;
   die("Error: Wrong number of arguments.") unless @_ == 1;
-  my $id=shift;
-  die("Error: ID must be defined.") unless defined $id;
-  if ($self->_db->docExists($id)) {
-    my $doc=$self->_db->newDoc($id);
-    $doc->retrieve;
-    my $data=$doc->data->{"data"};
-    $doc->delete;
-    return $data; #return want we delete
+  my $doc=shift;
+  die("Error: Key must be defined.") unless defined $doc;
+  if ($self->_db->docExists($doc)) {
+    my $cdbdoc=$self->_db->newDoc($doc); #isa CouchDB::Client::Doc
+    $cdbdoc->retrieve;                   #to get revision number for object
+    my $data=$cdbdoc->data->{"data"};    #since we already have the data
+    $cdbdoc->delete;
+    return $data;                        #return what we deleted
   } else {
     return undef;
   }
@@ -162,7 +183,7 @@ sub delete {
 
 =cut
 
-sub _client {
+sub _client {                            #isa CouchDB::Client
   my $self=shift;
   unless (defined $self->{"_client"}) {
     $self->{"_client"}=CouchDB::Client->new(uri=>$self->uri);
@@ -171,7 +192,7 @@ sub _client {
   return $self->{"_client"};
 }
 
-sub _db {
+sub _db {                                #isa CouchDB::Client::DB
   my $self=shift;
   unless (defined $self->{"_db"}) {
     $self->{"_db"}=$self->_client->newDB($self->db);
@@ -212,6 +233,10 @@ sub uri {
   return $self->{"uri"};
 }
 
+=head1 LIMITATIONS
+
+All I need this package for storing ASCII values so currently this package meets my requirements.  But, I would like to add binary data support and blessed object support.  I will gladly accept patches!
+
 =head1 BUGS
 
 Please log on RT and send an email to the author.
@@ -225,10 +250,12 @@ DavisNetworks.com supports all Perl applications including this package.
   Michael R. Davis
   CPAN ID: MRDVT
   Satellite Tracking of People, LLC
-  mdavis@stopllc.com
-  http://www.stopllc.com/
+  mrdvt92
+  http://www.davisnetworks.com/
 
 =head1 COPYRIGHT
+
+Copyright (c) 2011 Michael R. Davis - MRDVT
 
 This program is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
 

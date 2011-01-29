@@ -9,6 +9,7 @@ t/001_load.t
 t/002_types.t
 t/003_inheritance.t
 t/004_deep.t
+t/005_binary.t
 t/010_store.t
 t/015_update.t
 t/020_retrieve.t

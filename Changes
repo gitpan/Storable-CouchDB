@@ -1,8 +1,13 @@
 Revision history for Perl module Storable::CouchDB
 
+0.03 2001-01-29
+  - Updated documentation for CPAN
+  - Updated argument terminology from "id" to "doc"
+  - Added binary tests
+  - Added documentation on Storage Details
 0.02 2011-01-29
-  - Updated API to support arrays, scalars and undef
-  - Changed store API from data=>key to key=>data ## Not backwards compatable ##
+  - Added support for arrays, scalars and undef
+  - Changed store method from data=>key to key=>data ## Not backwards compatable ##
   - Added many test
   - Updated documentation
   - Added example script
