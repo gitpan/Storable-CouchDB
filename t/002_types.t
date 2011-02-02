@@ -1,6 +1,7 @@
 # -*- perl -*-
 
 use Test::More tests => 20;
+use IO::Socket::INET;
 
 BEGIN { use_ok( 'Storable::CouchDB' ); }
 
@@ -9,6 +10,8 @@ isa_ok ($s, 'Storable::CouchDB');
 
 my $key="varable-test";
 
+SKIP: {
+  skip "CouchDB not found.", 18 unless IO::Socket::INET->new("127.0.0.1:5984");
 diag("hash");
 {
   my $data=$s->store($key=>{Hello=>'World!'}); #overwrites or creates if not exists
@@ -65,4 +68,5 @@ diag("undef");
   diag explain $data;
   is(ref($data), "", "scalar return");
   is($data, undef, "Values");
+}
 }

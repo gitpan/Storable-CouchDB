@@ -3,11 +3,11 @@ use strict;
 use warnings;
 use CouchDB::Client;
 
-our $VERSION='0.03';
+our $VERSION='0.04';
 
 =head1 NAME
 
-Storable::CouchDB - Persistence for Perl data structures in CouchDB
+Storable::CouchDB - Persistences for Perl data structures in Apache CouchDB
 
 =head1 SYNOPSIS
 
@@ -33,11 +33,15 @@ Storable::CouchDB - Persistence for Perl data structures in CouchDB
 
 The Storable::CouchDB package brings persistence to your Perl data structures containing SCALAR, ARRAY, HASH or anything that can be serialized into JSON.
 
-The concept for this package is to provide similar capabilities as Storable::store and Storable::retrieve which work seamlessly with a CouchDB instead of a file system.
+The concept for this package is to provide similar capabilities as Storable::store and Storable::retrieve which work seamlessly with CouchDB instead of a file system.
 
 =head2 Storage Details
 
 The data is stored in the CouchDB under a key named "data", in the document named by the "doc" argument, in the database return by the "db" method, on the server returned by the "uri" method.
+
+In pseudo code:
+
+  $uri . $db . $doc -> "data" = $data
 
 Example:
 
@@ -59,19 +63,20 @@ Which returns this JSON structure
 
 =head1 USAGE
 
-Write Perl data structure to database.
+Write a Perl data structure to the database.
 
   use Storable::CouchDB;
   my $s = Storable::CouchDB->new;
-  $s->store('doc' => {Hello=>'World!'});
+  $s->store('doc' => "Hello World!");
 
-Read Perl data structure from database.
+Read a Perl data structure from the database.
 
   use Storable::CouchDB;
-  use Data::Dumper qw{Dumper};
   my $s = Storable::CouchDB->new;
   my $data = $s->retrieve('doc');
-  print Dumper([$data]);
+  print "$data\n";
+
+prints "Hello World!"
 
 =head1 CONSTRUCTOR
 
@@ -81,7 +86,7 @@ Read Perl data structure from database.
 
   my $s = Storable::CouchDB->new(
                                  uri => 'http://127.0.0.1:5984/',  #default
-                                 db  => 'perl-storable-couchDB'    #default
+                                 db  => 'perl-storable-couchDB',   #default
                                 );
 
 =cut
@@ -113,7 +118,7 @@ sub initialize {
   $s->store('doc' => [1, 2, 3]);
   my $data=$s->store('doc' => {b => 2}); #returns data that was stored
 
-API Difference: The L<Storable> API uses the store data > filename argument syntax which I think is counterintuitive for a document key=>value store like CouchDB.
+API Difference: The L<Storable> API uses the 'store data > filename' syntax which I think is counterintuitive for a document key=>value store like Apache CouchDB.
 
 =cut
 
@@ -121,7 +126,7 @@ sub store {
   my $self=shift;
   die("Error: Wrong number of arguments.") unless @_ == 2;
   my $doc=shift;
-  die("Error: Key must be defined.") unless defined $doc;
+  die("Error: Document name must be defined.") unless defined $doc;
   my $data=shift;                        #support storing undef!
   my $cdbdoc=$self->_db->newDoc($doc);   #isa CouchDB::Client::Doc
   if ($self->_db->docExists($doc)) {
@@ -145,7 +150,7 @@ sub retrieve {
   my $self=shift;
   die("Error: Wrong number of arguments.") unless @_ == 1;
   my $doc=shift;
-  die("Error: Key must be defined.") unless defined $doc;
+  die("Error: Document name must be defined.") unless defined $doc;
   if ($self->_db->docExists($doc)) {
     my $cdbdoc=$self->_db->newDoc($doc); #isa CouchDB::Client::Doc
     $cdbdoc->retrieve;
@@ -167,7 +172,7 @@ sub delete {
   my $self=shift;
   die("Error: Wrong number of arguments.") unless @_ == 1;
   my $doc=shift;
-  die("Error: Key must be defined.") unless defined $doc;
+  die("Error: Document name must be defined.") unless defined $doc;
   if ($self->_db->docExists($doc)) {
     my $cdbdoc=$self->_db->newDoc($doc); #isa CouchDB::Client::Doc
     $cdbdoc->retrieve;                   #to get revision number for object
@@ -203,7 +208,7 @@ sub _db {                                #isa CouchDB::Client::DB
 
 =head2 db
 
-Sets and retrieves the CouchDB database name.
+Sets and retrieves the Apache CouchDB database name.
 
 Default: perl-storable-couchdb
 
@@ -220,7 +225,7 @@ sub db {
 
 =head2 uri
 
-URI of the CouchDB server
+URI of the Apache CouchDB server
 
 Default: http://127.0.0.1:5984/
 
@@ -235,7 +240,9 @@ sub uri {
 
 =head1 LIMITATIONS
 
-All I need this package for storing ASCII values so currently this package meets my requirements.  But, I would like to add binary data support and blessed object support.  I will gladly accept patches!
+All I need this package for storing ASCII values so currently this package meets my requirements.  But, I would like to add blessed object support.  I will gladly accept patches!
+
+This package relies heavily on L<CouchDB::Client> to do the right thing.  So far, I have not had any compliants other than a slightly awkard interface.
 
 =head1 BUGS
 

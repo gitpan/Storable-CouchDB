@@ -1,6 +1,9 @@
 Revision history for Perl module Storable::CouchDB
 
-0.03 2001-01-29
+0.04 2011-02-02
+  - Updated tests to skip if there is no local CouchDB
+  - Updated documentation
+0.03 2011-01-29
   - Updated documentation for CPAN
   - Updated argument terminology from "id" to "doc"
   - Added binary tests
